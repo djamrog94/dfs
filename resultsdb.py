@@ -46,6 +46,11 @@ class ResultsdbSpider(scrapy.Spider):
         yields: only the baseball contests from the slates
         '''
         data = json.loads(response.body)
+        date = data[0]['start'][:10]
+        filename = f'{date}_slate.json'
+        with open(filename, 'w') as f:
+            json.dump(data, f)
+        self.log(f'Saved file {filename}')
         # baseball is sport 2
         slates = [i['_id'] for i in data if i['sport'] == 2]
 
@@ -63,7 +68,7 @@ class ResultsdbSpider(scrapy.Spider):
         data = json.loads(response.body)
 
         date = data[0]['start'][:10]
-        filename = f'{date}_slate.json'
+        filename = f'{date}_contests.json'
         with open(filename, 'w') as f:
             json.dump(data, f)
         self.log(f'Saved file {filename}')
