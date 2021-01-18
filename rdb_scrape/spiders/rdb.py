@@ -1,15 +1,16 @@
 import scrapy
 import json
+import random
 
-
-class ResultsdbSpider(scrapy.Spider):
+class RdbSpider(scrapy.Spider):
     idx = 0
-    name = 'resultsdb'
+    name = 'rdb'
     start_urls = ['https://rotogrinders.com/resultsdb/']
-
 
     def __init__(self, date):
         self.date = date
+        self.fdate = date.replace('/', '-')
+        self.base = 'datav1'
         self.headers = {
             'authority': 'resultsdb-api.rotogrinders.com',
             'method': 'get',
@@ -25,9 +26,18 @@ class ResultsdbSpider(scrapy.Spider):
             'sec-fetch-dest': 'empty',
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'same-site',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36'
+            'user-agent': self.pick_agent()
             }
-    
+            
+    def pick_agent(self):
+        agents =  ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:77.0) Gecko/20100101 Firefox/77.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36']
+        idx = random.randint(0, len(agents) - 1)
+        return agents[idx]
+
     def parse(self, response):
         '''
         this function starts by grabbing the main screen and passing along on each slate. this is not sport specific, so we need to determine
@@ -50,9 +60,8 @@ class ResultsdbSpider(scrapy.Spider):
         yields: only the baseball contests from the slates
         '''
         data = json.loads(response.body)
-        date = data[-1]['start'][:10]
-        filename = f'{date}_slate.json'
-        with open(filename, 'w') as f:
+        filename = f'slate.json'
+        with open(f'{self.base}/{self.fdate}/slate/{filename}', 'w') as f:
             json.dump(data, f)
         self.log(f'Saved file {filename}')
         # baseball is sport 2
@@ -87,7 +96,7 @@ class ResultsdbSpider(scrapy.Spider):
         data = json.loads(response.body)
         id = data[0]['_id']
         filename = f'{id}_ownership.json'
-        with open(filename, 'w') as f:
+        with open(f'{self.base}/{self.fdate}/ownership/{filename}', 'w') as f:
             json.dump(data, f)
         self.log(f'Saved file {filename}')
 
@@ -107,6 +116,6 @@ class ResultsdbSpider(scrapy.Spider):
         o_page = output['page']
         o_id = output['entries'][0]['_contestId']
         filename = f'{o_id}_{o_page}.json'
-        with open(filename, 'w') as f:
+        with open(f'{self.base}/{self.fdate}/entry/{filename}', 'w') as f:
             json.dump(output, f)
         self.log(f'Saved file {filename}')
