@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import db_import
 import os
+import logging
 
 class Parser():
     year = 0
@@ -12,95 +13,119 @@ class Parser():
     raw_player = []
     raw_contest = []
     raw_entries = []
+    slate_ids = {}
+    contest_ids = {}
+    player_ids = {}
     slate_df = pd.DataFrame()
     player_df = pd.DataFrame()
 
     def __init__(self):
         self.conn = psycopg2.connect(f'dbname=dfsv1 user=postgres password=draftday')
         self.cur = self.conn.cursor()
+        self.log = logging.getLogger("my-logger")
+        self.player_ids = self.get_player_ids()
 
     def reset(self):
+
         self.raw_slate = []
         self.raw_game = []
         self.raw_player = []
         self.raw_contest = []
         self.raw_entries = []
 
-    def parse_slate(self, data):
+    def parse_slate(self, data, date):
         '''
         slate: the slate file, json
         '''
         slates = [i for i in data if i['sport'] == 2]
 
-        for slate in slates:
-            slate_id = slate['_id']
-            # check in db if slate already exists!
-            # if self.check_slate(slate_id):
-            #     continue
-
+        for idx, slate in enumerate(slates):
+            self.slate_id = slate['_id']
             self.year = int(slate['start'][:4])
-            self.raw_slate.append({'site_slate_id': slate_id,
-            'slate_date': slate['start'][:10]})
+            slate_date = slate['start'][:10]
+            s_id = f"s{date.replace('-', '')}{idx}"
+            self.slate_ids[self.slate_id] = s_id
+            self.raw_slate.append({'id': s_id,'slate_date': slate_date})
         
             games = slate['slateGames']
             for game in games:
-                home = self.convert_roto_to_retro(game['teamHome']['hashtag'])
-                away = self.convert_roto_to_retro(game['teamAway']['hashtag'])
-                opp_total = None
-                try:
-                    movement = game['vegas']['movement']
-                    line = game['vegas']['line']
-                    total = game['vegas']['total']
-                    opp_total: opp_total
-                    over_under = game['vegas']['o/u']
-                except:
-                   continue
+                res = []
+                items= [
+                'movement',
+                'line',
+                'total',
+                'o/u',
+                'team_away',
+                'team_home',
+                'slate_id']
+                for item in items[:-3]:
+                    try:
+                        res.append(game['vegas'][item])
+                    except:
+                        res.append(None)
 
-                self.raw_game.append({'game_id': game['id'], 
-                'site_slate_id': slate_id,
-                'movement': movement,
-                'line': line,
-                'total': total,
-                    'over_under': over_under,
-                    'team_away': away,
-                    'team_home': home})
-    
-    def parse_contest(self, data):
-        for dd in data:
-            d = dd[0]
-            max1 = None
-            try:
-                max1 = d['maxEntries']
-            except:
-                pass
-            self.raw_contest.append({'contest_id': d['_id'],
-            'slate_id': d['_slateId'],
-            'contest_name': d['name'],
-            'prize_pool': d['prizePool'],
-            'buy_in': d['entryFee'],
-            'max_entries_per_user': d['maxEntriesPerUser'],
-            'max_entries': max1,
-            'entries': d['entryCount'],
-            'rg_prize_pool': d['rgPrizePool'],
-            'rg_prize_winner': d['rgPrizeWinnerCount'],
-            'prize': json.dumps(d['prizes']) 
-            })
-
-            players = d['playerOwnership']
-            for player in players:
                 try:
-                    ownership = player['actualOwnership']
-                    salary = int(player['salary'])
-                    player_id = self.get_player_id(player['name'], player['team'])
+                    home = self.convert_roto_to_retro(game['teamHome']['hashtag'])
+                    away = self.convert_roto_to_retro(game['teamAway']['hashtag'])
                 except:
                     continue
-                self.raw_player.append({'slate_player_id': player['_id'],
-                'site_slate_id': d['_slateId'],
-                'player_id': player_id,
-                'salary': salary,
-                    'ownership': ownership,
-                    'fantasy_points': player['actualFpts']})
+                items[3] = 'o_u'
+                res.extend([home, away, s_id])
 
+                self.raw_game.append(dict(zip(items,res)))
+    
+    def parse_contest(self, data, date):
+        for idx, dd in enumerate(data):
+            d = dd[0]
+            slate_id = d['_slateId']
+            s_id = self.slate_ids[slate_id]
+            res = []
+            c_id = f"c{date.replace('-', '')}{idx}"
+            res.append(c_id)
+            self.contest_ids[d['_id']] = c_id
+            res.append(s_id)
+            items = ['id','slate_id',
+            'name',
+            'prizePool',
+            'entryFee',
+            'maxEntriesPerUser',
+            'maxEntries',
+            'entryCount',
+            'rgPrizePool',
+            'rgPrizeWinnerCount',
+            'prizes']
+            for item in items[2:-1]:
+                try:
+                   res.append(d[item])
+                except:
+                    res.append(None)
+
+            res.append(json.dumps(d['prizes']))
+
+            self.raw_contest.append(dict(zip(items,res)))
+
+            players = d['playerOwnership']
+            items = ['player_id', 'slate_id', 'salary', 'actualOwnership', 'actualFpts']
+            
+            for player in players:
+                player_data = []
+                try:
+                    p_id = self.get_player_id(player['name'])
+                except:
+                    continue
+                player_data.append(p_id)
+                player_data.append(self.slate_ids[d['_slateId']])
+                try:
+                    int(player['salary'])
+                except:
+                    continue
+                for item in items[2:]:
+                    try:
+                        player_data.append(player[item])          
+                    except:
+                        player_data.append(None) 
+
+                self.raw_player.append(dict(zip(items,player_data)))
 
 
     def parse_entry(self, data):
@@ -109,28 +134,38 @@ class Parser():
         '''
         for idx, file in enumerate(data):
             for entry in file['entries']:
-                if entry['lineup'] == '' or len(entry['lineup']['summary']) != 10 \
+                if entry['lineup'] == '' \
                  or not self.check_length(entry):
                     continue
+                lineup = [['P', 0], ['P', 1], ['C', 0], ['1B', 0], ['2B', 0], ['SS', 0], ['3B', 0],
+                ['OF',0], ['OF', 1], ['OF', 2]]
 
-                self.raw_entries.append({'entry_id': entry['_id'],
-                'contest_id': entry['_contestId'],
-                'user_entry_count': entry['userEntryCount'],
-                'username': entry['siteScreenName'],
-                'entry_rank': entry['rank'],
-                'points': entry['points'],
-                'salary_used': entry['salaryUsed'],
-                'pitcher_1': self.check_player(entry['lineup']['P'][0]['_slatePlayerId']),
-                'pitcher_2': self.check_player(entry['lineup']['P'][1]['_slatePlayerId']),
-                'catcher': self.check_player(entry['lineup']['C'][0]['_slatePlayerId']),
-                'first_base': self.check_player(entry['lineup']['1B'][0]['_slatePlayerId']),
-                'second_base': self.check_player(entry['lineup']['2B'][0]['_slatePlayerId']),
-                'short_stop': self.check_player(entry['lineup']['SS'][0]['_slatePlayerId']),
-                'third_base': self.check_player(entry['lineup']['3B'][0]['_slatePlayerId']),
-                'outfield_1': self.check_player(entry['lineup']['OF'][0]['_slatePlayerId']),
-                'outfield_2': self.check_player(entry['lineup']['OF'][1]['_slatePlayerId']),
-                'outfield_3': self.check_player(entry['lineup']['OF'][2]['_slatePlayerId']),
-                })
+                res = []
+                for l in lineup:
+                    try:
+                        name = entry['lineup'][l[0]][l[1]]['name']
+                        first = name.split(' ')[0]
+                        last = name.split(' ')[1]
+                        #nid = self.get_player_id(name)                       
+                        nid = self.player_ids[(first, last)]
+                        res.append(nid)
+                    except:
+                        res.append(None)
+
+                keys = ['contest_id', 'user_entry_count', 'username', 'entry_rank', 'points', 'salary_used',
+                'pitcher_1', 'pitcher_2', 'catcher', 'first_base', 'second_base', 'short_stop', 'third_base',
+                'outfield_1', 'outfield_2', 'outfield_3']
+                ans = []
+                ans.append(self.contest_ids[entry['_contestId']])
+                ans.append(entry['userEntryCount'])
+                ans.append(entry['siteScreenName'])
+                ans.append(entry['rank'])
+                ans.append(entry['points'])
+                ans.append(entry['salaryUsed'])
+                ans.extend(res)
+                
+                self.raw_entries.append(dict(zip(keys, ans)))
+
             if idx % 1000 == 0:
                 print(f'{idx} file out of {len(data)}')
 
@@ -152,20 +187,28 @@ class Parser():
 
         return True
 
-    def get_player_id(self, name, team):
+    def get_player_id(self, name):
         '''
         convert team roto to retro
         '''
-        converted_team = self.convert_roto_to_retro(team)
         first = name.split(' ')[0]
         last = name.split(' ')[1]
-        self.cur.callproc("get_player_id", [first, last, converted_team, self.year])
+        self.cur.callproc("get_player_id", [first, last])
         return self.cur.fetchone()[0]
 
     def convert_roto_to_retro(self, team):
         df = pd.read_csv('team_map.csv')
         row = df[df['BBREFTEAM']==team]
         return row['RETROSHEET'].values[0]
+
+    def get_player_ids(self):
+        self.cur.execute("SELECT player_id, last_name, first_name FROM player")
+        data = self.cur.fetchall()
+        df = pd.DataFrame(data, columns=['player_id', 'last_name', 'first_name'])
+        keys = tuple(zip(df['first_name'], df['last_name']))
+        values = df['player_id']
+        return dict(zip(keys, values))
+
     
     def check_slate(self, slate_id):
         self.cur.execute("SELECT site_slate_id FROM slate WHERE site_slate_id = %s", (slate_id,))
@@ -178,20 +221,24 @@ class Parser():
         # parse slate
         with open(f'{base}/{date}/slate/slate.json') as f:
             data = json.load(f)
-        self.parse_slate(data)
-        print('done with slate')
-        slate_df = pd.DataFrame(self.raw_slate)
-        game_df = pd.DataFrame(self.raw_game)
+        self.parse_slate(data, date)
+        db_import.batch_import('slate', pd.DataFrame(self.raw_slate))
+        db_import.batch_import('slate_game', pd.DataFrame(self.raw_game))
+        print('done with slate / game')
+        #slate_df = pd.DataFrame(self.raw_slate)
+        #game_df = pd.DataFrame(self.raw_game)
         # parse contests
         all_contests = os.listdir(f'{base}/{date}/ownership')
         data = []
         for contest in all_contests:
             with open(f'{base}/{date}/ownership/{contest}') as f:
                 data.append(json.load(f))
-        self.parse_contest(data)
+        self.parse_contest(data, date)
         print('done with contest')
-        contest_df = pd.DataFrame(self.raw_contest)
-        self.player_df = pd.DataFrame(self.raw_player)
+        #contest_df = pd.DataFrame(self.raw_contest)
+        #self.player_df = pd.DataFrame(self.raw_player)
+        db_import.batch_import('contest', pd.DataFrame(self.raw_contest))
+        db_import.batch_import('slate_player', pd.DataFrame(self.raw_player))
         # parse entries
         all_entries = os.listdir(f'{base}/{date}/entry')
         data = []
@@ -200,17 +247,18 @@ class Parser():
                 data.append(json.load(f))
         print('start with entry')
         self.parse_entry(data)
+        db_import.batch_import('entry', pd.DataFrame(self.raw_entries))
         print('done with entry')
-        entry_df = pd.DataFrame(self.raw_entries)
+        # entry_df = pd.DataFrame(self.raw_entries)
         # commit data to db
-        items = {'slate': slate_df,
-        'slate_game': game_df,
-        'contest': contest_df,
-        'slate_player': self.player_df,
-        'entry': entry_df}
+        # items = {'slate': slate_df,
+        # 'slate_game': game_df,
+        # 'contest': contest_df,
+        # 'slate_player': self.player_df,
+        # 'entry': entry_df}
 
-        for table in items.keys():
-            db_import.batch_import(table, items[table])
+        # for table in items.keys():
+        #     db_import.batch_import(table, items[table])
 
 
 def main():
@@ -224,7 +272,7 @@ def main():
     #         data.append(json.load(f))
     # p.parse_entry(data)
     # db_import.batch_import('entry', pd.DataFrame(p.raw_entries))
-    p.run('07-29-2020')
+    p.run('03-20-2019')
 
 if __name__ == "__main__":
     main()

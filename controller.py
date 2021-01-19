@@ -9,7 +9,7 @@ class Controller():
     base = 'datav1'
 
     def get_dates(self):
-        df = pd.read_csv('2019SKED.TXT', header=None)
+        df = pd.read_csv('1920.TXT', header=None)
         df['day'] = df.apply(self.date, axis=1)
         return df['day'].drop_duplicates().values
         
@@ -29,19 +29,19 @@ class Controller():
             # except:
             #     continue
 
-            # run scraper
+            #run scraper
             # print(f'started scraping {fdate} | {idx}/{len(dates)}')
             # os.system(f'scrapy crawl rdb -a date={date}')
 
             print(f'started parsing {fdate} | {idx}/{len(dates)}')
-            # parse scraped data
+            # # parse scraped data
             pp = Parser()
             pp.run(fdate)
             now = datetime.now()
 
             current_time = now.strftime("%H:%M:%S")
             print(f'finished day {fdate} | {idx}/{len(dates)}: {current_time}')
-            time.sleep(random.randint(5,15))
+            #time.sleep(random.randint(5,15))
 
 def main():
     control = Controller()
