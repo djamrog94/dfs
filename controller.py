@@ -9,7 +9,7 @@ class Controller():
     base = 'datav1'
 
     def get_dates(self):
-        df = pd.read_csv('1920.TXT', header=None)
+        df = pd.read_csv('2018SKED.TXT', header=None)
         df['day'] = df.apply(self.date, axis=1)
         return df['day'].drop_duplicates().values
         

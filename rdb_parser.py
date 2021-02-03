@@ -42,10 +42,9 @@ class Parser():
         for idx, slate in enumerate(slates):
             self.slate_id = slate['_id']
             self.year = int(slate['start'][:4])
-            slate_date = slate['start'][:10]
             s_id = f"s{date.replace('-', '')}{idx}"
             self.slate_ids[self.slate_id] = s_id
-            self.raw_slate.append({'id': s_id,'slate_date': slate_date})
+            self.raw_slate.append({'id': s_id,'slate_date': date})
         
             games = slate['slateGames']
             for game in games:
@@ -128,7 +127,7 @@ class Parser():
                 self.raw_player.append(dict(zip(items,player_data)))
 
 
-    def parse_entry(self, data):
+    def parse_entry(self, data, date):
         '''
         pass all json files into here
         '''
@@ -152,11 +151,12 @@ class Parser():
                     except:
                         res.append(None)
 
-                keys = ['contest_id', 'user_entry_count', 'username', 'entry_rank', 'points', 'salary_used',
+                keys = ['contest_id', 'entry_date', 'user_entry_count', 'username', 'entry_rank', 'points', 'salary_used',
                 'pitcher_1', 'pitcher_2', 'catcher', 'first_base', 'second_base', 'short_stop', 'third_base',
                 'outfield_1', 'outfield_2', 'outfield_3']
                 ans = []
                 ans.append(self.contest_ids[entry['_contestId']])
+                ans.append(date)
                 ans.append(entry['userEntryCount'])
                 ans.append(entry['siteScreenName'])
                 ans.append(entry['rank'])
@@ -165,9 +165,6 @@ class Parser():
                 ans.extend(res)
                 
                 self.raw_entries.append(dict(zip(keys, ans)))
-
-            if idx % 1000 == 0:
-                print(f'{idx} file out of {len(data)}')
 
     def check_player(self, id):
         if id in self.player_df['slate_player_id'].values:
@@ -224,7 +221,7 @@ class Parser():
         self.parse_slate(data, date)
         db_import.batch_import('slate', pd.DataFrame(self.raw_slate))
         db_import.batch_import('slate_game', pd.DataFrame(self.raw_game))
-        print('done with slate / game')
+        # print('done with slate / game')
         #slate_df = pd.DataFrame(self.raw_slate)
         #game_df = pd.DataFrame(self.raw_game)
         # parse contests
@@ -234,7 +231,7 @@ class Parser():
             with open(f'{base}/{date}/ownership/{contest}') as f:
                 data.append(json.load(f))
         self.parse_contest(data, date)
-        print('done with contest')
+        # print('done with contest')
         #contest_df = pd.DataFrame(self.raw_contest)
         #self.player_df = pd.DataFrame(self.raw_player)
         db_import.batch_import('contest', pd.DataFrame(self.raw_contest))
@@ -246,7 +243,7 @@ class Parser():
             with open(f'{base}/{date}/entry/{entry}') as f:
                 data.append(json.load(f))
         print('start with entry')
-        self.parse_entry(data)
+        self.parse_entry(data, date)
         db_import.batch_import('entry', pd.DataFrame(self.raw_entries))
         print('done with entry')
         # entry_df = pd.DataFrame(self.raw_entries)
