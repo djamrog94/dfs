@@ -143,11 +143,7 @@ class Parser():
                 for l in lineup:
                     try:
                         name = entry['lineup'][l[0]][l[1]]['name']
-                        first = name.split(' ')[0]
-                        last = name.split(' ')[1]
-                        #nid = self.get_player_id(name)                       
-                        nid = self.player_ids[(first, last)]
-                        res.append(nid)
+                        res.append(name)
                     except:
                         res.append(None)
 
@@ -242,10 +238,8 @@ class Parser():
         for entry in all_entries:
             with open(f'{base}/{date}/entry/{entry}') as f:
                 data.append(json.load(f))
-        print('start with entry')
         self.parse_entry(data, date)
         db_import.batch_import('entry', pd.DataFrame(self.raw_entries))
-        print('done with entry')
         # entry_df = pd.DataFrame(self.raw_entries)
         # commit data to db
         # items = {'slate': slate_df,

@@ -35,9 +35,9 @@ class Contest(Base):
     rgprizepool = Column(Float)
     rgprizewinnercount = Column(Float)
     prizes = Column(JSON)
-    gpp = Column(Boolean)
+    #gpp = Column(Boolean)
 
-    entry = relationship('Slate', foreign_keys=[slate_id])
+    slate = relationship('Slate', foreign_keys=[slate_id])
 
 class Slate_game(Base):
     __tablename__ = 'slate_game'
@@ -95,35 +95,93 @@ class Entry(Base):
     __tablename__ = 'entry'
     entry_id = Column(String, primary_key=True)
     contest_id = Column(String, ForeignKey('contest.id'))
+    entry_date = Column(Date)
     user_entry_count = Column(Integer)
     username = Column(String)
     entry_rank = Column(Integer)
     points = Column(Float)
     salary_used = Column(Integer)
-    pitcher_1 = Column(String, ForeignKey('player.player_id'))
-    pitcher_2 = Column(String, ForeignKey('player.player_id'))
-    catcher = Column(String, ForeignKey('player.player_id'))
-    first_base = Column(String, ForeignKey('player.player_id'))
-    second_base = Column(String, ForeignKey('player.player_id'))
-    short_stop = Column(String, ForeignKey('player.player_id'))
-    third_base = Column(String, ForeignKey('player.player_id'))
-    outfield_1 = Column(String, ForeignKey('player.player_id'))
-    outfield_2 = Column(String, ForeignKey('player.player_id'))
-    outfield_3 = Column(String, ForeignKey('player.player_id'))
-    year = Column(Integer)
+    pitcher_1 = Column(String)
+    pitcher_2 = Column(String)
+    catcher = Column(String)
+    first_base = Column(String)
+    second_base = Column(String)
+    short_stop = Column(String)
+    third_base = Column(String)
+    outfield_1 = Column(String)
+    outfield_2 = Column(String)
+    outfield_3 = Column(String)
 
-    p1 = relationship("Player", foreign_keys=[pitcher_1])
-    p2 = relationship("Player", foreign_keys=[pitcher_2])
-    c = relationship("Player", foreign_keys=[catcher])
-    b1 = relationship("Player", foreign_keys=[first_base])
-    b2 = relationship("Player", foreign_keys=[second_base])
-    b3 = relationship("Player", foreign_keys=[short_stop])
-    ss = relationship("Player", foreign_keys=[third_base])
-    of1 = relationship("Player", foreign_keys=[outfield_1])
-    of2 = relationship("Player", foreign_keys=[outfield_2])
-    of3 = relationship("Player", foreign_keys=[outfield_3])
+    contest = relationship("Contest", foreign_keys=[contest_id])
 
+class Entry_y2020m07(Base):
+    __tablename__ = 'entry_y2020m07'
+    entry_id = Column(String, primary_key=True)
+    contest_id = Column(String, ForeignKey('contest.id'))
+    entry_date = Column(Date)
+    user_entry_count = Column(Integer)
+    username = Column(String)
+    entry_rank = Column(Integer)
+    points = Column(Float)
+    salary_used = Column(Integer)
+    pitcher_1 = Column(String)
+    pitcher_2 = Column(String)
+    catcher = Column(String)
+    first_base = Column(String)
+    second_base = Column(String)
+    short_stop = Column(String)
+    third_base = Column(String)
+    outfield_1 = Column(String)
+    outfield_2 = Column(String)
+    outfield_3 = Column(String)
 
+    contest = relationship("Contest", foreign_keys=[contest_id])
+
+class Entry_y2020m08(Base):
+    __tablename__ = 'entry_y2020m08'
+    entry_id = Column(String, primary_key=True)
+    contest_id = Column(String, ForeignKey('contest.id'))
+    entry_date = Column(Date)
+    user_entry_count = Column(Integer)
+    username = Column(String)
+    entry_rank = Column(Integer)
+    points = Column(Float)
+    salary_used = Column(Integer)
+    pitcher_1 = Column(String)
+    pitcher_2 = Column(String)
+    catcher = Column(String)
+    first_base = Column(String)
+    second_base = Column(String)
+    short_stop = Column(String)
+    third_base = Column(String)
+    outfield_1 = Column(String)
+    outfield_2 = Column(String)
+    outfield_3 = Column(String)
+
+    contest = relationship("Contest", foreign_keys=[contest_id])
+
+class Entry_y2020m09(Base):
+    __tablename__ = 'entry_y2020m09'
+    entry_id = Column(String, primary_key=True)
+    contest_id = Column(String, ForeignKey('contest.id'))
+    entry_date = Column(Date)
+    user_entry_count = Column(Integer)
+    username = Column(String)
+    entry_rank = Column(Integer)
+    points = Column(Float)
+    salary_used = Column(Integer)
+    pitcher_1 = Column(String)
+    pitcher_2 = Column(String)
+    catcher = Column(String)
+    first_base = Column(String)
+    second_base = Column(String)
+    short_stop = Column(String)
+    third_base = Column(String)
+    outfield_1 = Column(String)
+    outfield_2 = Column(String)
+    outfield_3 = Column(String)
+
+    contest = relationship("Contest", foreign_keys=[contest_id])
 
 
 class Team(Base):
@@ -149,9 +207,27 @@ def main():
     Session = sessionmaker(bind=engine)
     Session.configure(bind=engine) 
     session = Session()
-    slates = session.query(Slate).filter(Slate.slate_year == 2018).all()
-    for slate in slates:
-        entries = session.query(Entry).filter(Entry.entry_rank==1).join(Contest, Entry.contest_id==Contest.id).filter(Contest.slate_id==slate.id).all()
+    from datetime import datetime
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    print(f'Started: {current_time}')
+    slates = session.query(Slate).filter(Slate.slate_year == 2020).all()
+    slate = slates[0]
+    players = session.query(Contest).join(Slate, Contest.slate_id==Slate.id).first()
+    for row in tqdm(entries):
+        rank = row.entry_rank
+        prizes = row.prizes
+        for prize in prizes:
+            if rank >= prize['minFinish'] and rank <= prize['maxFinish']:
+                row.winnings = prize['cash']
+                break
+        
+    session.commit()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    print(f'Ended: {current_time}')
+    # for slate in slates:
+    #     entries = session.query(Entry).filter(Entry.entry_rank==1).join(Contest, Entry.contest_id==Contest.id).filter(Contest.slate_id==slate.id).all()
     # pos = {
     # 'P': [],
     # '1B': [],

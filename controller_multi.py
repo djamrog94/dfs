@@ -11,6 +11,9 @@ class Controller():
     dates = []
 
     def __init__(self):
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print(f'Starting Program | {current_time}')
         df = pd.read_csv('2020t.TXT', header=None)
         df['day'] = df.apply(self.date, axis=1)
         self.dates = list(df['day'].drop_duplicates().values)
@@ -39,7 +42,7 @@ class Controller():
 
     def run(self):
         threads = []
-        for i in range(os.cpu_count() - 1):
+        for i in range(os.cpu_count()):
             threads.append(Thread(target=self.scrape, kwargs=dict(thread_num=i)))
         for thread in threads:
             thread.start()
