@@ -1,31 +1,52 @@
-import rdb_models
+from rdb_models import *
 from collections import Counter
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import psycopg2
+import pandas as pd
 
 class Player():
     def __init__(self, player):
         self.player = player
-        self.session = self.create_sesion()
+        self.session = self.create_session()
 
-    def create_sesion(self):
+    def create_session(self):
         engine = create_engine('postgresql://postgres:draftday@localhost:5432/dfsv1')
         Session = sessionmaker(bind=engine)
         Session.configure(bind=engine)
-        return Session()
+        session = Session()
+        return session
     
     def get_name(self):
-        pass
+        return self.player
+
+    def get_last(self):
+        return self.player.split(' ')[1]
+
+    def get_first(self):
+        return self.player.split(' ')[0]
 
     def get_position(self):
         pass
 
-    def get_ba(self, date, num_games=None, start_date=None):
+    def get_era(self, date, num_games=None, start_date=None):
         '''
         date in string form yyyy-mm-dd
         num_game: last x games included
         start_date: games in range starting from here
         '''
-        slate_id = session.query(Slate_game).join(Slate_player, Slate_game.slate_id==Slate_game.slate_id).filter(Slate_player.name='Aaron Nola').first()
-        
+        year = date[:4]
+        d = date.replace('-', '')[2:]
+        p = self.session.query(Roster).filter(Roster.last_name==self.get_last()) \
+                                    .filter(Roster.first_name==self.get_first()) \
+                                    .filter(Roster.year==year).first()
+        pid = p.player_id
+
+        conn = psycopg2.connect("dbname='dfsv1' user='postgres' host='localhost' password='draftday'")
+        cur.execute(f"SELECT pitch_seq_tx, event_tx from event where game_id= \
+            (SELECT game_id from game where game_dt={d} and (away_start_pit_id='{pid}' or home_start_pit_id='{pid}')) ")
+        print('hi')
+
 
     
 
@@ -85,12 +106,8 @@ class At_bat():
         self.pitches = ''
 
     def _parse(self):
-        temp = self.pitches.split('/')
-        if len(temp) == 1:
-            pass
-        elif len(temp) == 2:
-            pass
-        else:
+        pass
+
 
 
 
@@ -111,6 +128,7 @@ class Slate_player():
 
 def main():
     hi = Player('Aaron Nola')
-    print(hi.get_ba('2020-09-27', 5))
+    hi.get_era('2020-09-27', 5)
+    print('test')
 
 main()
