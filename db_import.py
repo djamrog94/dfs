@@ -24,23 +24,22 @@ def batch_import(table, df):
 
 def main():
     # add data for team table
-    df = pd.read_csv('rs_data/teams.csv')
-    df = df[df['year'] == 2020]
-    df = df.drop('year', axis=1)
-    df.columns = ['team_abbr', 'league', 'city', 'team_name']
-    batch_import('team', df)
+    # df = pd.read_csv('rs_data/teams.csv')
+    # df = df[df['year'] == 2020]
+    # df = df.drop('year', axis=1)
+    # df.columns = ['team_abbr', 'league', 'city', 'team_name']
+    # batch_import('team', df)
 
-    #add data for player table
-    df = pd.read_csv('rs_data/rosters.csv')
-    df = df.drop_duplicates(subset='player_id', keep="first")
-    df = df.drop(['year', 'team_abbr_1'], axis=1)
-    batch_import('player', df)
+    # # #add data for player table
+    # df = pd.read_csv('rs_data/rosters.csv')
+    # df = df.drop_duplicates(subset='player_id', keep="first")
+    # df = df.drop(['year', 'team_abbr_1'], axis=1)
+    # batch_import('player', df)
 
     # add data for roster table
     df = pd.read_csv('rs_data/rosters.csv')
-    df = df[['player_id', 'team_abbr_1', 'year']]
-    df.columns = ['player_id', 'team_abbr', 'team_year']
-    df = df.drop_duplicates()
+    df.columns = ['year', 'player_id', 'last_name', 'first_name', 'batting_hand', 'throwing_hand', 'team_abbr', 'position']
+    df = df.drop_duplicates(subset=['year', 'team_abbr', 'player_id'], keep="first")
     batch_import('roster', df)
     
 

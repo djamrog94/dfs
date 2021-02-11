@@ -60,13 +60,13 @@ class Slate_player(Base):
     __tablename__ = 'slate_player'
     id = Column(Integer, primary_key=True)
     slate_id = Column(String, ForeignKey('slate.id'))
-    player_id = Column(String, ForeignKey('player.player_id'))
+    name = Column(String)
     salary = Column(Integer)
     actualownership = Column(Float)
     actualfpts = Column(Float)
 
     slate = relationship("Slate", foreign_keys=[slate_id])
-    player = relationship("Player", foreign_keys=[player_id])
+
 
 class Player(Base):
     __tablename__ = 'player'
@@ -195,7 +195,12 @@ class Roster(Base):
     __tablename__ = 'roster'
     player_id = Column(String, ForeignKey('player.player_id'), primary_key=True)
     team_abbr = Column(String, ForeignKey('team.team_abbr'), primary_key=True)
-    team_year = Column(Date, primary_key=True)
+    year = Column(Date, primary_key=True)
+    last_name = Column(String)
+    first_name = Column(String)
+    batting_hand = Column(String)
+    throwing_hand = Column(String)
+    position = Column(String)
 
     player = relationship("Player", foreign_keys=[player_id])
     team = relationship("Team", foreign_keys=[team_abbr])
@@ -211,6 +216,7 @@ def main():
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     print(f'Started: {current_time}')
+    slate_id = session.query(Slate_player, Slate_game).join(Slate_game, Slate_player.slate_id==Slate_game.slate_id).filter(Slate_player.name=='Aaron Nola').first()
     slates = session.query(Slate).filter(Slate.slate_year == 2020).all()
     slate = slates[0]
     players = session.query(Contest).join(Slate, Contest.slate_id==Slate.id).first()

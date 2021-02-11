@@ -104,18 +104,16 @@ class Parser():
             self.raw_contest.append(dict(zip(items,res)))
 
             players = d['playerOwnership']
-            items = ['player_id', 'slate_id', 'salary', 'actualOwnership', 'actualFpts']
+            items = ['name', 'slate_id', 'salary', 'actualOwnership', 'actualFpts']
             
             for player in players:
                 player_data = []
-                try:
-                    p_id = self.get_player_id(player['name'])
-                except:
-                    continue
-                player_data.append(p_id)
+                player_data.append(player['name'])
                 player_data.append(self.slate_ids[d['_slateId']])
                 try:
                     int(player['salary'])
+                    int(player['actualOwnership'])
+                    int(player['actualFpts'])
                 except:
                     continue
                 for item in items[2:]:
@@ -215,8 +213,8 @@ class Parser():
         with open(f'{base}/{date}/slate/slate.json') as f:
             data = json.load(f)
         self.parse_slate(data, date)
-        db_import.batch_import('slate', pd.DataFrame(self.raw_slate))
-        db_import.batch_import('slate_game', pd.DataFrame(self.raw_game))
+        # db_import.batch_import('slate', pd.DataFrame(self.raw_slate))
+        # db_import.batch_import('slate_game', pd.DataFrame(self.raw_game))
         # print('done with slate / game')
         #slate_df = pd.DataFrame(self.raw_slate)
         #game_df = pd.DataFrame(self.raw_game)
@@ -230,16 +228,16 @@ class Parser():
         # print('done with contest')
         #contest_df = pd.DataFrame(self.raw_contest)
         #self.player_df = pd.DataFrame(self.raw_player)
-        db_import.batch_import('contest', pd.DataFrame(self.raw_contest))
+        #db_import.batch_import('contest', pd.DataFrame(self.raw_contest))
         db_import.batch_import('slate_player', pd.DataFrame(self.raw_player))
         # parse entries
-        all_entries = os.listdir(f'{base}/{date}/entry')
-        data = []
-        for entry in all_entries:
-            with open(f'{base}/{date}/entry/{entry}') as f:
-                data.append(json.load(f))
-        self.parse_entry(data, date)
-        db_import.batch_import('entry', pd.DataFrame(self.raw_entries))
+        # all_entries = os.listdir(f'{base}/{date}/entry')
+        # data = []
+        # for entry in all_entries:
+        #     with open(f'{base}/{date}/entry/{entry}') as f:
+        #         data.append(json.load(f))
+        # self.parse_entry(data, date)
+        # db_import.batch_import('entry', pd.DataFrame(self.raw_entries))
         # entry_df = pd.DataFrame(self.raw_entries)
         # commit data to db
         # items = {'slate': slate_df,
