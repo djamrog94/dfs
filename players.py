@@ -43,8 +43,10 @@ class Player():
         pid = p.player_id
 
         conn = psycopg2.connect("dbname='dfsv1' user='postgres' host='localhost' password='draftday'")
-        cur.execute(f"SELECT pitch_seq_tx, event_tx from event where game_id= \
-            (SELECT game_id from game where game_dt={d} and (away_start_pit_id='{pid}' or home_start_pit_id='{pid}')) ")
+        cur = conn.cursor()
+        cur.execute(f"SELECT pitch_seq_tx, event_tx from event where game_id IN \
+            (SELECT game_id from game where game_dt <= {d} and (away_start_pit_id='{pid}' or home_start_pit_id='{pid}') ORDER BY game_dt DESC LIMIT {num_games}) ")
+        df = pd.Dataframe(cur.fetchall())
         print('hi')
 
 
