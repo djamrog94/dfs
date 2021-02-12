@@ -55,14 +55,19 @@ class Pitcher(Player):
         split = [x for x in at_bats if x.split==True]
         not_split = [x for x in at_bats if x.split==False]
         outs = 0
+        so = 0
         hard = 0
         soft = 0
         hits = 0
         walks = 0
         rbi = 0
+        type_hit = {}
         for ab in not_split:
-            if ab.bases in ['K', 'O']:
+            if ab.bases == 'O':
                 outs += 1
+            elif ab.bases == 'K':
+                outs +=1 
+                so += 1
             elif ab.bases in ['S', 'D', 'T', 'H']:
                 hits += 1
             elif ab.bases in ['BK','B', 'K']:
@@ -72,12 +77,18 @@ class Pitcher(Player):
             elif ab.hard == -1:
                 soft += 1
             rbi += ab.rbi
+            if ab.type_hit in type_hit.keys():
+                type_hit[ab.type_hit] += 1
+            else:
+                type_hit[ab.type_hit] = 1
         print(f'Outs Percent: {outs / len(not_split)}')
+        print(f'Outs Percent: {so / len(not_split)}')
         print(f'Outs Percent: {hits / len(not_split)}')
         print(f'Outs Percent: {walks / len(not_split)}')
         print(f'Outs Percent: {hard / hits}')
         print(f'Outs Percent: {soft / hits}')
         print(f'Outs Percent: {rbi}')
+        print(type_hit)
 
         
 
