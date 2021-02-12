@@ -33,7 +33,7 @@ class Player():
 
 class Pitcher(Player):
 
-    def get_era(self, date, num_games=None, start_date=None):
+    def get_perc_so(self, date, num_games=None, start_date=None):
         '''
         date in string form yyyy-mm-dd
         num_game: last x games included
@@ -48,11 +48,38 @@ class Pitcher(Player):
 
         conn = psycopg2.connect("dbname='dfsv1' user='postgres' host='localhost' password='draftday'")
         cur = conn.cursor()
-        cur.execute(f"SELECT pitch_seq_tx, event_tx from event where game_id IN \
+        cur.execute(f"SELECT pitch_seq_tx, event_tx, pit_id, bat_id from event where game_id IN \
             (SELECT game_id from game where game_dt <= {d} and (away_start_pit_id='{pid}' or home_start_pit_id='{pid}') ORDER BY game_dt DESC LIMIT {num_games}) ")
         data = cur.fetchall()
         at_bats = [At_bat(x) for x in data]
-        print('hi')
+        split = [x for x in at_bats if x.split==True]
+        not_split = [x for x in at_bats if x.split==False]
+        outs = 0
+        hard = 0
+        soft = 0
+        hits = 0
+        walks = 0
+        rbi = 0
+        for ab in not_split:
+            if ab.bases in ['K', 'O']:
+                outs += 1
+            elif ab.bases in ['S', 'D', 'T', 'H']:
+                hits += 1
+            elif ab.bases in ['BK','B', 'K']:
+                walks += 1
+            if ab.hard == 1:
+                hard += 1
+            elif ab.hard == -1:
+                soft += 1
+            rbi += ab.rbi
+        print(f'Outs Percent: {outs / len(not_split)}')
+        print(f'Outs Percent: {hits / len(not_split)}')
+        print(f'Outs Percent: {walks / len(not_split)}')
+        print(f'Outs Percent: {hard / hits}')
+        print(f'Outs Percent: {soft / hits}')
+        print(f'Outs Percent: {rbi}')
+
+        
 
 
     
@@ -102,6 +129,8 @@ class At_bat():
 
         self.pitches = data[0]
         self.event = data[1]
+        self.pitcher = data[2]
+        self.batter = data[3]
         # pitches
         self.balls = 0
         self.strikes = 0
@@ -123,6 +152,19 @@ class At_bat():
         self.parse_event()
 
     def parse_pitches(self):
+
+        conn = psycopg2.connect("dbname='dfsv1' user='postgres' host='localhost' password='draftday'")
+        cur = conn.cursor()
+        cur.execute(f"SELECT batting_hand FROM roster where player_id='{self.batter}' ")
+        bat_hand = cur.fetchone()
+        cur.execute(f"SELECT throwing_hand FROM roster where player_id='{self.pitcher}' ")
+        pit_hand = cur.fetchone()
+        
+        if bat_hand == 'S' or (bat_hand != pit_hand):
+            self.split = True
+        else:
+            self.split = False
+
         c = Counter(self.pitches)
         for i in c.keys():
             # ball
@@ -185,7 +227,7 @@ class Slate_player():
 
 def main():
     hi = Pitcher('Aaron Nola')
-    hi.get_era('2020-09-27', 5)
+    hi.get_perc_so('2020-09-27', 5)
     print('test')
 
 main()
